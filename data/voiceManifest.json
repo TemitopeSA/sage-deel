@@ -1,16 +1,16 @@
 {
-  "voice": "Samantha",
+  "voice": "kokoro:af_heart",
   "clips": {
-    "intro": 8398,
-    "overview": 6736,
-    "insight": 4780,
-    "team": 3872,
-    "worker": 7788,
-    "ai": 5837,
-    "routing": 5262,
-    "ask": 5897,
-    "recommendation": 6476,
-    "action": 8310,
-    "close": 6942
+    "intro": 10200,
+    "overview": 7450,
+    "insight": 6325,
+    "team": 4700,
+    "worker": 8775,
+    "ai": 7075,
+    "routing": 6675,
+    "ask": 6575,
+    "recommendation": 7125,
+    "action": 9500,
+    "close": 8025
   }
 }

@@ -66,11 +66,15 @@ Tour completion, welcome state, demo mode, narration on/off and Smart Routing ar
 
 ### Demo narration
 
-Captions and narration live in `data/demoScript.json` (with optional `speech` text for pronunciation). Audio is pre-rendered to `public/voice/*.m4a` with macOS text-to-speech, and clip lengths go into `data/voiceManifest.json` so each beat lasts at least as long as its narration.
+Captions and narration live in `data/demoScript.json` (with optional `speech` text for pronunciation). Audio is pre-rendered to `public/voice/*.m4a`, and clip lengths go into `data/voiceManifest.json` so each beat lasts at least as long as its narration.
+
+The shipped narration uses [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) (open-source neural TTS, Apache-2.0), voice `af_heart`, rendered locally:
 
 ```bash
-npm run voice                                   # default voice (Samantha)
-VOICE="Ava (Premium)" RATE=175 npm run voice    # any installed macOS voice
+npm i --no-save kokoro-js
+npm run voice:neural                          # af_heart
+KOKORO_VOICE=af_bella npm run voice:neural    # other Kokoro voices
+npm run voice                                 # fallback: macOS system voice (Samantha)
 ```
 
 ## Analytics
