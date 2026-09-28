@@ -1,26 +1,111 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Sage design tokens — Deel-inspired: warm neutrals, white surfaces, a confident blue-violet, yellow used sparingly. */
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-canvas: #f6f4ef;
+  --color-canvas-2: #efece5;
+  --color-surface: #ffffff;
+  --color-ink: #16151b;
+  --color-ink-2: #3a3942;
+  --color-muted: #6c6a74;
+  --color-subtle: #9b99a2;
+  --color-line: #e6e2da;
+  --color-line-2: #efece6;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  --color-brand: #4b3cf0;
+  --color-brand-600: #3d2fd6;
+  --color-brand-700: #2f24a8;
+  --color-brand-50: #f1efff;
+  --color-brand-100: #e3dfff;
+  --color-brand-200: #c9c2ff;
+
+  --color-sun: #ffd74a;
+  --color-sun-50: #fff7d6;
+  --color-sun-700: #8a6400;
+
+  --color-pos: #167a4a;
+  --color-pos-50: #e6f5ec;
+  --color-warn: #a86a00;
+  --color-warn-50: #fdf2dc;
+  --color-risk: #c23a3a;
+  --color-risk-50: #fcecec;
+
+  --shadow-card: 0 1px 2px rgb(22 21 27 / 0.04), 0 0 0 1px rgb(22 21 27 / 0.02);
+  --shadow-lift: 0 8px 24px -8px rgb(22 21 27 / 0.12), 0 2px 6px rgb(22 21 27 / 0.05);
+  --shadow-pop: 0 24px 60px -16px rgb(22 21 27 / 0.28), 0 4px 12px rgb(22 21 27 / 0.08);
+
+  --animate-fade-up: fade-up 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-fade-in: fade-in 0.25s ease-out both;
+  --animate-scale-in: scale-in 0.22s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-slide-in: slide-in 0.3s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes scale-in {
+    from { opacity: 0; transform: translateY(4px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateX(24px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes shimmer {
+    from { background-position: -400px 0; }
+    to { background-position: 400px 0; }
   }
 }
 
+html {
+  color-scheme: light;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-feature-settings: "cv11", "ss01";
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #efece6 0%, #f7f5f1 50%, #efece6 100%);
+  background-size: 800px 100%;
+  animation: var(--animate-shimmer);
+  border-radius: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: #dcd8cf; border-radius: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Recharts: remove the default focus outline on the SVG surface; we provide our own. */
+.recharts-wrapper *:focus { outline: none; }
+
+@keyframes grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
