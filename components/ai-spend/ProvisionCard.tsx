@@ -7,7 +7,8 @@ import { pendingProvisioning } from "@/data/aiSpend";
 import { useApp } from "@/lib/store";
 
 export function ProvisionCard() {
-  const { openModal } = useApp();
+  const { openModal, seatsProvisioned } = useApp();
+  const waiting = pendingProvisioning.count - seatsProvisioned;
   return (
     <Card className="flex items-center gap-4 p-5" data-tour="provision">
       <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-sun-50 text-sun-700">
@@ -16,10 +17,12 @@ export function ProvisionCard() {
       <div className="min-w-0 flex-1">
         <p className="text-[15px] font-semibold">AI access provisioning</p>
         <p className="mt-0.5 text-[13px] text-muted">
-          {pendingProvisioning.count} approved AI seats are waiting for new hires starting in the next 3 weeks.
+          {waiting > 0
+            ? `${waiting} approved AI ${waiting === 1 ? "seat is" : "seats are"} waiting for new hires starting in the next 3 weeks.`
+            : "All approved AI seats are provisioned."}
         </p>
       </div>
-      <Button variant="dark" onClick={() => openModal("provision")}>Provision via Deel IT</Button>
+      <Button variant="dark" onClick={() => openModal("provision")} disabled={waiting <= 0}>Provision via Deel IT</Button>
     </Card>
   );
 }

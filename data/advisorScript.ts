@@ -53,13 +53,20 @@ export const stagesFor: Record<ScenarioId, Stage[]> = {
   ],
 };
 
-export const statusFor = (stage: number) =>
+const modelingLabel: Record<ScenarioId, string> = {
+  hire10: `Modeling ${hiringOptions.length} markets…`,
+  compare: "Modeling Poland and Brazil…",
+  model: "Modeling EOR vs contractor…",
+  reduce: "Modeling savings options…",
+};
+
+export const statusFor = (stage: number, scenario: ScenarioId) =>
   stage < 2
     ? "Analyzing your workforce data…"
     : stage < 3
       ? "Comparing current team economics…"
       : stage < 5
-        ? `Modeling ${hiringOptions.length} markets…`
+        ? modelingLabel[scenario]
         : "Preparing recommendation…";
 
 export function matchScenario(q: string): ScenarioId {

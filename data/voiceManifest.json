@@ -1,0 +1,16 @@
+{
+  "voice": "Samantha",
+  "clips": {
+    "intro": 8398,
+    "overview": 6736,
+    "insight": 4780,
+    "team": 3872,
+    "worker": 7788,
+    "ai": 5837,
+    "routing": 5262,
+    "ask": 5897,
+    "recommendation": 6476,
+    "action": 8310,
+    "close": 6942
+  }
+}

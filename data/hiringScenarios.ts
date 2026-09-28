@@ -98,3 +98,18 @@ export const hiringOptions: HiringOption[] = markets.map(({ country, model, note
 export const recommended = [...hiringOptions].sort((a, b) => b.score - a.score)[0];
 export const modeledSavings = usBenchmark.annual - recommended.annualCost;
 export const engineeringOutputMean = engOutputMean;
+
+export interface DecisionTarget {
+  country: CountryCode;
+  model: WorkerType;
+  annualCost: number;
+  hub: string;
+}
+
+const hubs: Partial<Record<CountryCode, string>> = { NG: "Lagos", PL: "Warsaw", BR: "São Paulo", PT: "Lisbon" };
+
+/** The scenario each advisor answer hands to Deel Hire, Finance and Workforce Planning. */
+export function decisionTarget(scenario: "hire10" | "compare" | "model" | "reduce" | null): DecisionTarget {
+  const pick = scenario === "compare" ? hiringOptions.find((o) => o.country === "PL")! : recommended;
+  return { country: pick.country, model: pick.model, annualCost: pick.annualCost, hub: hubs[pick.country] ?? "" };
+}

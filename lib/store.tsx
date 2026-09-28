@@ -3,6 +3,7 @@
 import * as React from "react";
 import type { CountryCode, TeamId } from "@/types";
 import { defaultFilters, type WorkerFilters } from "@/lib/metrics";
+import { track } from "@/lib/analytics";
 
 export type ModalId =
   | "hire"
@@ -76,6 +77,9 @@ interface State {
   runAdvisor: (scenario: ScenarioId, opts?: { instant?: boolean; query?: string }) => void;
   resetAdvisor: () => void;
 
+  seatsProvisioned: number;
+  provisionSeat: () => void;
+
   toasts: Toast[];
   toast: (title: string, body?: string) => void;
   dismissToast: (id: number) => void;
@@ -126,6 +130,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     stage: 0,
   });
   const [toasts, setToasts] = React.useState<Toast[]>([]);
+  const [seatsProvisioned, setSeatsProvisioned] = React.useState(0);
+  // The demo toggles Smart Routing for the story; restore the viewer's own choice afterwards.
+  const routingBeforeDemo = React.useRef(false);
 
   // Hydrate persisted preferences after mount (keeps SSR markup deterministic).
   React.useEffect(() => {
@@ -159,6 +166,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setAiTeam,
     smartRouting,
     setSmartRouting: (v) => {
+      if (v && !smartRouting && !demoActive) track("smart_routing_enabled");
       setSmartRoutingState(v);
       ls.set(STORAGE.routing, v ? "1" : "0");
     },
@@ -169,6 +177,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     modal,
     exportContext,
     openModal: (m, ctx) => {
+      if (m && !demoActive) track("action_opened", { action: m });
       if (ctx) setExportContext(ctx);
       setModal(m);
     },
@@ -176,22 +185,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setPaletteOpen,
     welcomeOpen,
     setWelcomeOpen: (v) => {
+      if (!v && welcomeOpen) track("welcome_explore");
       setWelcomeOpenState(v);
       if (!v) ls.set(STORAGE.welcome, "1");
     },
     tourStep,
     startTour: () => {
+      track("tour_started");
       setDemoActive(false);
       setWelcomeOpenState(false);
       ls.set(STORAGE.welcome, "1");
       setTourStep(0);
     },
     setTourStep: (n) => {
-      if (n === null) ls.set(STORAGE.tourDone, "1");
+      if (n === null && tourStep !== null) {
+        ls.set(STORAGE.tourDone, "1");
+        track("tour_closed", { step: tourStep + 1 });
+      }
       setTourStep(n);
     },
     demoActive,
     startDemo: () => {
+      if (!demoActive) routingBeforeDemo.current = smartRouting;
       setTourStep(null);
       setWelcomeOpenState(false);
       ls.set(STORAGE.welcome, "1");
@@ -199,18 +214,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setDemoActive(true);
     },
     stopDemo: () => {
+      setSmartRoutingState(routingBeforeDemo.current);
+      ls.set(STORAGE.routing, routingBeforeDemo.current ? "1" : "0");
       ls.set(STORAGE.demo, "0");
       setDemoActive(false);
     },
     advisor,
-    runAdvisor: (scenario, opts) =>
+    runAdvisor: (scenario, opts) => {
+      if (!opts?.instant && !demoActive) track("advisor_asked", { scenario, custom: !!opts?.query });
       setAdvisor({
         scenario,
         query: opts?.query ?? scenarioQueries[scenario],
         status: opts?.instant ? "done" : "thinking",
         stage: opts?.instant ? ADVISOR_STAGES : 0,
-      }),
+      });
+    },
     resetAdvisor: () => setAdvisor({ status: "idle", scenario: null, query: "", stage: 0 }),
+    seatsProvisioned,
+    provisionSeat: () => setSeatsProvisioned((n) => n + 1),
     toasts,
     toast,
     dismissToast: (id) => setToasts((ts) => ts.filter((t) => t.id !== id)),

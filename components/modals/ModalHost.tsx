@@ -9,7 +9,7 @@ import { SageMark } from "@/components/layout/SageMark";
 import { useApp, type ModalId } from "@/lib/store";
 import { countryByCode } from "@/data/countries";
 import { teamById } from "@/data/teams";
-import { HIRES, modelHire, modeledSavings, recommended, usBenchmark } from "@/data/hiringScenarios";
+import { decisionTarget, HIRES, modelHire, usBenchmark, type DecisionTarget } from "@/data/hiringScenarios";
 import { pendingProvisioning } from "@/data/aiSpend";
 import { company, engineering, highSpendLowOutput, overAllowance, byTeam } from "@/lib/metrics";
 import { cn, money, pct } from "@/lib/utils";
@@ -54,8 +54,9 @@ const Row = ({ k, v }: { k: string; v: React.ReactNode }) => (
 
 // --- Deel Hire ---------------------------------------------------------------
 
-function HireModal({ close }: { close: () => void }) {
+function HireModal({ close, target }: { close: () => void; target: DecisionTarget }) {
   const { state, run } = useSubmit();
+  const recommended = target;
   const c = countryByCode[recommended.country];
   if (state === "done")
     return <Success title="Concept flow — role creation would continue in Deel Hire." body={`${HIRES} Backend Engineer requisitions pre-filled for ${c.name} (${recommended.model}), with budget attached and the Hiring agent ready to draft job descriptions.`} onDone={close} />;
@@ -72,7 +73,7 @@ function HireModal({ close }: { close: () => void }) {
           <Row k="Employment model" v={<Badge tone="brand">{recommended.model}</Badge>} />
           <Row k="Estimated annual budget" v={money(recommended.annualCost, { compact: true })} />
           <Row k="Hiring manager" v="Engineering Manager, Platform" />
-          <Row k="Target start" v="Within 10–18 days of offer" />
+          <Row k="Typical time to hire" v={c.timeToHire} />
         </dl>
       </div>
       <Footer note="Opens in Deel Hire. Nothing is posted until you publish.">
@@ -88,8 +89,8 @@ function HireModal({ close }: { close: () => void }) {
 
 // --- Compare EOR vs contractor ------------------------------------------------
 
-function CompareModal({ close }: { close: () => void }) {
-  const country = recommended.country;
+function CompareModal({ close, target }: { close: () => void; target: DecisionTarget }) {
+  const country = target.country;
   const e = modelHire(country, "EOR");
   const k = modelHire(country, "Contractor");
   const lines: [string, keyof typeof e.breakdown][] = [
@@ -130,7 +131,10 @@ function CompareModal({ close }: { close: () => void }) {
         <div className="mt-4 rounded-xl border border-line-2 bg-[#fbfaf7] p-4 text-[13px] text-ink-2">
           <p className="font-semibold text-ink">Recommendation: EOR for these roles</p>
           <p className="mt-1">
-            Contractors are {pct(1 - k.monthly / e.monthly, { signed: false })} cheaper per month, but full-time, long-term engineers embedded in your team are where classification risk is highest. Use contractors for scoped, project-based work.
+            {1 - k.monthly / e.monthly < 0.03
+              ? "Contractors cost about the same here once their rate premium is included. Full-time"
+              : `Contractors are ${pct(1 - k.monthly / e.monthly, { signed: false })} cheaper per month, but full-time`}
+            , long-term engineers embedded in your team are where classification risk is highest. Use contractors for scoped, project-based work.
           </p>
         </div>
       </div>
@@ -143,7 +147,9 @@ function CompareModal({ close }: { close: () => void }) {
 
 // --- Export ------------------------------------------------------------------
 
-function ExportModal({ close, context }: { close: () => void; context: "overview" | "hiring" }) {
+function ExportModal({ close, context, target }: { close: () => void; context: "overview" | "hiring"; target: DecisionTarget }) {
+  const recommended = target;
+  const modeledSavings = usBenchmark.annual - target.annualCost;
   const { state, run } = useSubmit();
   const [format, setFormat] = React.useState<"pdf" | "xlsx" | "netsuite">("pdf");
   if (state === "done")
@@ -215,9 +221,10 @@ function ExportModal({ close, context }: { close: () => void; context: "overview
 
 // --- Workforce plan ----------------------------------------------------------
 
-function PlanModal({ close }: { close: () => void }) {
+function PlanModal({ close, target }: { close: () => void; target: DecisionTarget }) {
   const { state, run } = useSubmit();
-  const [name, setName] = React.useState("Q4 Platform expansion — Lagos");
+  const recommended = target;
+  const [name, setName] = React.useState(`Q4 backend expansion — ${target.hub || countryByCode[target.country].name}`);
   const [quarter, setQuarter] = React.useState("Q4 2026");
   if (state === "done")
     return <Success title="Scenario added to Workforce Planning" body={`"${name}" is now a draft scenario with ${HIRES} positions and a ${money(recommended.annualCost, { compact: true })} budget, ready for headcount approval.`} onDone={close} />;
@@ -263,10 +270,12 @@ function PlanModal({ close }: { close: () => void }) {
 
 function ProvisionModal({ close }: { close: () => void }) {
   const { state, run } = useSubmit();
+  const { provisionSeat, seatsProvisioned } = useApp();
+  const remaining = pendingProvisioning.count - seatsProvisioned;
   const ex = pendingProvisioning.example;
   const total = ex.tools.reduce((s, t) => s + t.cost, 0);
   if (state === "done")
-    return <Success title="Provisioning request created" body={`${ex.name}'s AI tools will be ready on day one (${ex.start}). ${pendingProvisioning.count - 1} more approved seats are queued in Deel IT.`} onDone={close} />;
+    return <Success title="Provisioning request created" body={`${ex.name}'s AI tools will be ready on day one (${ex.start}). ${remaining} more approved ${remaining === 1 ? "seat is" : "seats are"} queued in Deel IT.`} onDone={close} />;
   return (
     <>
       <div className="px-6 py-5">
@@ -294,7 +303,7 @@ function ProvisionModal({ close }: { close: () => void }) {
       </div>
       <Footer note="Fulfilled by Deel IT alongside device shipping.">
         <Button onClick={close}>Cancel</Button>
-        <Button variant="dark" onClick={() => run()} disabled={state === "working"}>
+        <Button variant="dark" onClick={() => { provisionSeat(); run(); }} disabled={state === "working"}>
           {state === "working" ? <LoaderCircle className="animate-spin" /> : <Laptop />}
           Provision seat
         </Button>
@@ -377,28 +386,29 @@ function ConceptModal({ close }: { close: () => void }) {
   );
 }
 
-const titles: Record<Exclude<ModalId, null>, { title: string; description?: string; className?: string }> = {
+const titlesFor = (target: DecisionTarget): Record<Exclude<ModalId, null>, { title: string; description?: string; className?: string }> => ({
   hire: { title: "Deel Hire", description: "Create requisitions from this scenario" },
-  compare: { title: "Employee (EOR) vs contractor", description: `${HIRES} Backend Engineers in ${countryByCode[recommended.country].name}` },
+  compare: { title: "Employee (EOR) vs contractor", description: `${HIRES} Backend Engineers in ${countryByCode[target.country].name}` },
   export: { title: "Export report", className: "max-w-[560px]" },
   plan: { title: "Create workforce plan", description: "Add this scenario to Deel Workforce Planning" },
   provision: { title: "Provision AI access", description: "Via Deel IT" },
   signals: { title: "AI spend signals", description: "Review contributing factors before acting", className: "max-w-[640px]" },
   concept: { title: "About Sage", description: "Workforce intelligence — an independent concept", className: "max-w-[560px]" },
-};
+});
 
 export function ModalHost() {
-  const { modal, openModal, exportContext } = useApp();
+  const { modal, openModal, exportContext, advisor } = useApp();
   const close = () => openModal(null);
-  const meta = modal ? titles[modal] : null;
+  const target = decisionTarget(advisor.scenario);
+  const meta = modal ? titlesFor(target)[modal] : null;
   return (
     <Dialog open={!!modal} onOpenChange={(o) => !o && close()}>
       {modal && meta && (
         <DialogContent key={modal} title={meta.title} description={meta.description} className={meta.className}>
-          {modal === "hire" && <HireModal close={close} />}
-          {modal === "compare" && <CompareModal close={close} />}
-          {modal === "export" && <ExportModal close={close} context={exportContext} />}
-          {modal === "plan" && <PlanModal close={close} />}
+          {modal === "hire" && <HireModal close={close} target={target} />}
+          {modal === "compare" && <CompareModal close={close} target={target} />}
+          {modal === "export" && <ExportModal close={close} context={exportContext} target={target} />}
+          {modal === "plan" && <PlanModal close={close} target={target} />}
           {modal === "provision" && <ProvisionModal close={close} />}
           {modal === "signals" && <SignalsModal close={close} />}
           {modal === "concept" && <ConceptModal close={close} />}

@@ -58,11 +58,24 @@ The Output Index is an **illustrative composite of connected activity signals fo
 
 - **First visit:** a welcome panel offers the **2-minute tour**, **Explore myself**, or **Executive demo**.
 - **Product tour:** 8 spotlight steps across all four screens. Replay from the **?** menu or `⌘K → Start Product Tour`. Keys: `←` `→` `Esc`.
-- **Executive demo mode:** top bar **Executive demo** (or `⌘K`). Auto-plays a ~1:45 narrated walkthrough built for a Loom recording: Overview → Team Economics → AI Spend → Hiring Advisor → Action. Keys: `Space` pause, `←` `→` skip, `Esc` exit.
+- **Executive demo mode:** top bar **Executive demo** (or `⌘K`). Auto-plays a ~1:40 voice-narrated walkthrough built for a Loom recording: Overview → Team Economics → AI Spend → Hiring Advisor → Action. Keys: `Space` pause/replay, `←` `→` skip, `Esc` exit. When it finishes, the play button becomes **Replay**. Narration can be muted from the control bar.
 - **Command palette:** `⌘K` / `Ctrl+K`.
 - **Concept mode:** the pill in the top bar explains the concept and data.
 
-Tour completion, welcome state, demo mode and Smart Routing are stored in `localStorage`.
+Tour completion, welcome state, demo mode, narration on/off and Smart Routing are stored in `localStorage`.
+
+### Demo narration
+
+Captions and narration live in `data/demoScript.json` (with optional `speech` text for pronunciation). Audio is pre-rendered to `public/voice/*.m4a` with macOS text-to-speech, and clip lengths go into `data/voiceManifest.json` so each beat lasts at least as long as its narration.
+
+```bash
+npm run voice                                   # default voice (Samantha)
+VOICE="Ava (Premium)" RATE=175 npm run voice    # any installed macOS voice
+```
+
+## Analytics
+
+Vercel Web Analytics is enabled (`@vercel/analytics`). Beyond page views, Sage sends anonymous product events: `tour_started`, `tour_closed` (with step), `demo_started`, `demo_completed`, `advisor_asked` (scenario), `action_opened` (Deel Hire, export, plan…), `welcome_explore`, and `smart_routing_enabled`. Custom events need a Vercel Pro plan to show in the dashboard; page views work on every plan.
 
 ## Architecture
 

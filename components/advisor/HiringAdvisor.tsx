@@ -179,7 +179,7 @@ export function HiringAdvisor() {
               ) : (
                 <p className="flex items-center gap-2 text-[13.5px] font-medium text-brand-700" aria-live="polite">
                   <span className="relative flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-brand opacity-60" /><span className="relative inline-flex size-2 rounded-full bg-brand" /></span>
-                  {statusFor(advisor.stage)}
+                  {statusFor(advisor.stage, advisor.scenario)}
                 </p>
               )}
               {(!done || traceOpen) && (

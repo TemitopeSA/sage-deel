@@ -142,9 +142,9 @@ export function CompareResponse({ animate }: { animate: boolean }) {
   };
   return (
     <div className="space-y-5">
-      <Lead animate={animate} text={`Poland and Brazil both work for backend hiring, but they optimize for different things.`} />
+      <Lead animate={animate} text={`Both work for backend hiring. For 10 full-time engineers, Poland EOR is the better fit; Brazil wins on speed.`} />
       <div className="animate-fade-up [animation-delay:250ms]">
-        <ScenarioTable options={[pl, brEor, brC]} />
+        <ScenarioTable options={[pl, brEor, brC]} recommendedId={pl.id} />
       </div>
       <div className="grid animate-fade-up grid-cols-1 gap-3 [animation-delay:450ms] md:grid-cols-2">
         <div className="rounded-xl border border-line bg-surface p-4">
@@ -177,7 +177,14 @@ export function ModelResponse({ animate }: { animate: boolean }) {
   ];
   return (
     <div className="space-y-5">
-      <Lead animate={animate} text={`For 10 full-time backend engineers in Nigeria, EOR is the better fit. Contractors cost ${pct(1 - con.annual / eor.annual, { signed: false })} less on paper, but not for this kind of role.`} />
+      <Lead
+        animate={animate}
+        text={
+          1 - con.annual / eor.annual < 0.03
+            ? "For 10 full-time backend engineers in Nigeria, EOR is the better fit. Once the contractor rate premium is included, contractors cost about the same, without the protections."
+            : `For 10 full-time backend engineers in Nigeria, EOR is the better fit. Contractors cost ${pct(1 - con.annual / eor.annual, { signed: false })} less on paper, but not for this kind of role.`
+        }
+      />
       <div className="animate-fade-up overflow-hidden rounded-xl border border-line [animation-delay:250ms]">
         <table className="w-full text-[13px]">
           <caption className="sr-only">EOR vs contractor comparison</caption>

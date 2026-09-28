@@ -79,14 +79,16 @@ export function TeamTable() {
                   <td className="num py-3 text-right">{r.headcount ? r.output.toFixed(0) : "—"}</td>
                   <td className="num py-3 text-right text-ink-2">{r.headcount ? money(r.costPerOutput) : "—"}</td>
                   <td className="py-3 text-right">
+                    {r.headcount === 0 ? <span className="text-subtle">—</span> : (
                     <span className={cn("num text-[12.5px] font-medium", r.team.vsPeerBenchmark > 0 ? "text-warn" : "text-pos")}>
                       {pct(r.team.vsPeerBenchmark)}
                       <span className="sr-only">{r.team.vsPeerBenchmark > 0 ? " above peer cost" : " below peer cost"}</span>
                     </span>
+                    )}
                   </td>
-                  <td className="num py-3 text-right text-ink-2">{money(r.ai, { compact: true })}</td>
+                  <td className="num py-3 text-right text-ink-2">{r.headcount ? money(r.ai, { compact: true }) : "—"}</td>
                   <td className="py-3 pr-5 text-right">
-                    <Delta value={change} goodWhen="down" />
+                    {r.headcount ? <Delta value={change} goodWhen="down" /> : <span className="text-subtle">—</span>}
                   </td>
                 </tr>
               );

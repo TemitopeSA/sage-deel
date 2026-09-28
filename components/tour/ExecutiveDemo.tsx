@@ -2,110 +2,137 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Pause, Play, SkipBack, SkipForward, X } from "lucide-react";
+import { Pause, Play, RotateCcw, SkipBack, SkipForward, Volume2, VolumeX, X } from "lucide-react";
 import { SageMark } from "@/components/layout/SageMark";
 import { useApp } from "@/lib/store";
 import { defaultFilters } from "@/lib/metrics";
 import { findWorker } from "@/data/workers";
+import script from "@/data/demoScript.json";
+import voice from "@/data/voiceManifest.json";
+import { track } from "@/lib/analytics";
 import { SpotlightMask, useTargetRect } from "./Spotlight";
 import { cn } from "@/lib/utils";
 
 type App = ReturnType<typeof useApp>;
+type ScriptId = (typeof script)[number]["id"];
 
-interface Beat {
-  chapter: string;
+interface Stage {
   route: string;
   selector: string | null;
-  caption: string;
-  ms: number;
+  /** Puts the app in the right state for this beat, so skipping back and forth stays consistent. */
   enter?: (app: App) => void;
   later?: { at: number; run: (app: App) => void };
   endCard?: boolean;
 }
 
-const chinedu = findWorker("Chinedu Okafor");
+interface Beat extends Stage {
+  id: string;
+  chapter: string;
+  caption: string;
+  ms: number;
+  clipMs: number;
+}
 
-// Scripted for a sub-2-minute Loom: Overview 0:00 → Team 0:25 → AI 0:43 → Hiring 1:02 → Action 1:27.
-const beats: Beat[] = [
-  {
-    chapter: "Intro",
+const chinedu = findWorker("Chinedu Okafor");
+const clean = (a: App) => {
+  a.openWorker(null);
+  a.openModal(null);
+};
+const ensureAdvice = (a: App) => {
+  if (a.advisor.scenario !== "hire10" || a.advisor.status === "idle") a.runAdvisor("hire10", { instant: true });
+};
+
+const stages: Record<ScriptId, Stage> = {
+  intro: {
     route: "/sage",
     selector: null,
-    ms: 8000,
-    caption: "Deel already sits on one of the richest sources of global workforce cost data. The opportunity is to connect that data to output and turn it into decisions.",
+    endCard: true,
     enter: (a) => {
-      a.openWorker(null);
-      a.openModal(null);
+      clean(a);
       a.setSmartRouting(false);
       a.resetAdvisor();
       a.setFilters(defaultFilters);
     },
-    endCard: true,
   },
-  { chapter: "Overview", route: "/sage", selector: '[data-tour="kpi-total"]', ms: 9000, caption: "First, I can see the true economic picture of my workforce: fully loaded, across every country and worker type." },
-  { chapter: "Overview", route: "/sage", selector: '[data-tour="main-insight"]', ms: 8000, caption: "Engineering output is growing faster than engineering cost, and AI is part of the reason." },
-  { chapter: "Team economics", route: "/sage/team-economics", selector: '[data-tour="scatter"]', ms: 9000, caption: "But cost alone isn't enough. I want to know what I'm getting for that spend." },
-  {
-    chapter: "Team economics",
+  overview: { route: "/sage", selector: '[data-tour="kpi-total"]', enter: clean },
+  insight: { route: "/sage", selector: '[data-tour="main-insight"]', enter: clean },
+  team: {
+    route: "/sage/team-economics",
+    selector: '[data-tour="scatter"]',
+    enter: (a) => {
+      clean(a);
+      a.setFilters(defaultFilters);
+    },
+  },
+  worker: {
     route: "/sage/team-economics",
     selector: null,
-    ms: 9000,
-    caption: "Every point is explainable: cost breakdown, cohort benchmark and clear guardrails. It's a planning signal, not a performance score.",
-    enter: (a) => a.openWorker(chinedu.id),
+    enter: (a) => {
+      a.openModal(null);
+      a.openWorker(chinedu.id);
+    },
   },
-  {
-    chapter: "AI spend",
+  ai: {
     route: "/sage/ai-spend",
     selector: '[data-tour="ai-vs-output"]',
-    ms: 10000,
-    caption: "And as AI becomes another workforce cost layer, I need to know whether that spend is actually creating leverage.",
-    enter: (a) => a.openWorker(null),
+    enter: (a) => {
+      clean(a);
+      a.setAiTeam("all");
+      a.setSmartRouting(false);
+    },
   },
-  {
-    chapter: "AI spend",
+  routing: {
     route: "/sage/ai-spend",
     selector: '[data-tour="smart-routing"]',
-    ms: 9000,
-    caption: "Smart Routing keeps the same teams and tools, and saves about $41K a quarter.",
+    enter: (a) => {
+      clean(a);
+      a.setSmartRouting(false);
+    },
     later: { at: 1800, run: (a) => a.setSmartRouting(true) },
   },
-  {
-    chapter: "Hiring advisor",
+  ask: {
     route: "/sage/hiring-advisor",
     selector: '[data-tour="advisor-trace"]',
-    ms: 13000,
-    caption: "Then I can ask the question CFOs and operators ultimately care about: where should I hire next?",
-    enter: (a) => a.runAdvisor("hire10"),
+    enter: (a) => {
+      clean(a);
+      a.runAdvisor("hire10");
+    },
   },
-  {
-    chapter: "Hiring advisor",
+  recommendation: {
     route: "/sage/hiring-advisor",
     selector: '[data-tour="recommendation"]',
-    ms: 11000,
-    caption: "It compares my existing workforce economics, modeled country costs, employment models and output signals.",
+    enter: (a) => {
+      clean(a);
+      ensureAdvice(a);
+    },
   },
-  {
-    chapter: "Action",
+  action: {
     route: "/sage/hiring-advisor",
     selector: '[data-tour="decision-actions"]',
-    ms: 10000,
-    caption: "And the recommendation doesn't stop at insight. It flows into the actions Deel already owns: Hire. EOR. Contractor. IT. Payroll.",
-    later: { at: 3500, run: (a) => a.openModal("hire") },
+    enter: (a) => {
+      clean(a);
+      ensureAdvice(a);
+    },
+    later: { at: 4200, run: (a) => a.openModal("hire") },
   },
-  {
-    chapter: "Close",
-    route: "/sage/hiring-advisor",
-    selector: null,
-    ms: 9000,
-    caption: "That's the opportunity: turn Deel from the system that records workforce decisions into the system that helps companies make them.",
-    enter: (a) => a.openModal(null),
-    endCard: true,
-  },
-];
+  close: { route: "/sage/hiring-advisor", selector: null, endCard: true, enter: clean },
+};
+
+const clips = voice.clips as Record<string, number>;
+// Each beat lasts at least its scripted minimum, and always long enough for its narration.
+const beats: Beat[] = script.map((s) => ({
+  ...stages[s.id as ScriptId],
+  id: s.id,
+  chapter: s.chapter,
+  caption: s.caption,
+  clipMs: clips[s.id] ?? 0,
+  ms: Math.max(s.minMs, (clips[s.id] ?? 0) + 1300),
+}));
 
 const total = beats.reduce((s, b) => s + b.ms, 0);
 const starts = beats.map((_, i) => beats.slice(0, i).reduce((s, b) => s + b.ms, 0));
 const fmt = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
+const VOICE_KEY = "sage.demoVoice";
 
 export function ExecutiveDemo() {
   const app = useApp();
@@ -113,44 +140,109 @@ export function ExecutiveDemo() {
   const router = useRouter();
   const pathname = usePathname();
   const [i, setI] = React.useState(0);
+  const [run, setRun] = React.useState(0);
   const [elapsed, setElapsed] = React.useState(0);
   const [paused, setPaused] = React.useState(false);
+  const [finished, setFinished] = React.useState(false);
+  const [voiceOn, setVoiceOn] = React.useState(true);
+
   const appRef = React.useRef(app);
+  const iRef = React.useRef(0);
+  const elapsedRef = React.useRef(0);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const voiceRef = React.useRef(true);
+  const pausedRef = React.useRef(false);
+
   React.useEffect(() => {
     appRef.current = app;
   });
 
-  const beat = demoActive ? beats[i] : null;
-  const rect = useTargetRect(beat && pathname === beat.route ? beat.selector : null, `${i}-${pathname}`);
-
   React.useEffect(() => {
-    if (!demoActive) return;
-    /* eslint-disable react-hooks/set-state-in-effect */
-    setI(0);
-    setElapsed(0);
+    try {
+      const v = window.localStorage.getItem(VOICE_KEY) !== "0";
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setVoiceOn(v);
+      voiceRef.current = v;
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+
+  const beat = demoActive ? beats[i] : null;
+  const rect = useTargetRect(beat && pathname === beat.route ? beat.selector : null, `${i}-${run}-${pathname}`);
+
+  const audio = () => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+      audioRef.current.preload = "auto";
+    }
+    return audioRef.current;
+  };
+
+  /** Plays the current beat's clip; seeks only when an offset is given (beat start, unmute). */
+  const playClip = React.useCallback((offsetMs?: number) => {
+    const a = audioRef.current;
+    const b = beats[iRef.current];
+    if (!a || !voiceRef.current || pausedRef.current) return;
+    if (offsetMs !== undefined) {
+      if (offsetMs >= b.clipMs) return;
+      a.currentTime = offsetMs / 1000;
+    } else if (a.ended) {
+      return;
+    }
+    a.play().catch(() => {
+      /* autoplay blocked; captions still carry the story */
+    });
+  }, []);
+
+  const restart = React.useCallback(() => {
+    setFinished(false);
     setPaused(false);
-    /* eslint-enable react-hooks/set-state-in-effect */
+    pausedRef.current = false;
+    setI(0);
+    setRun((r) => r + 1);
+  }, []);
+
+  // Start / stop.
+  React.useEffect(() => {
+    if (!demoActive) {
+      // Reset while hidden so the next start enters beat 0 exactly once.
+      audioRef.current?.pause();
+      /* eslint-disable react-hooks/set-state-in-effect */
+      setI(0);
+      setFinished(false);
+      setPaused(false);
+      /* eslint-enable react-hooks/set-state-in-effect */
+      return;
+    }
+    track("demo_started");
   }, [demoActive]);
 
-  // Enter each beat: navigate, run its action, schedule delayed action.
+  // Enter each beat: set state, navigate, start narration.
   React.useEffect(() => {
     if (!demoActive) return;
     const b = beats[i];
+    iRef.current = i;
+    elapsedRef.current = 0;
     b.enter?.(appRef.current);
     if (pathname !== b.route) router.push(b.route);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setElapsed(0);
+    const a = audio();
+    a.pause();
+    a.src = `/voice/${b.id}.m4a`;
+    playClip(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [demoActive, i]);
+  }, [demoActive, i, run]);
+
+  // Pause / resume narration with the demo.
+  React.useEffect(() => {
+    pausedRef.current = paused;
+    if (paused) audioRef.current?.pause();
+    else if (demoActive) playClip();
+  }, [paused, demoActive, playClip]);
 
   // Clock: advances beats and fires delayed actions from the interval callback.
-  const iRef = React.useRef(0);
-  const elapsedRef = React.useRef(0);
-  React.useEffect(() => {
-    iRef.current = i;
-    elapsedRef.current = 0;
-  }, [i]);
-
   React.useEffect(() => {
     if (!demoActive || paused) return;
     const id = window.setInterval(() => {
@@ -159,8 +251,14 @@ export function ExecutiveDemo() {
       elapsedRef.current = next;
       if (b.later && next >= b.later.at && next < b.later.at + 100) b.later.run(appRef.current);
       if (next >= b.ms) {
-        if (iRef.current < beats.length - 1) setI(iRef.current + 1);
-        else setPaused(true);
+        if (iRef.current < beats.length - 1) {
+          setI(iRef.current + 1);
+        } else {
+          setElapsed(b.ms);
+          setPaused(true);
+          setFinished(true);
+          track("demo_completed");
+        }
       } else {
         setElapsed(next);
       }
@@ -168,26 +266,58 @@ export function ExecutiveDemo() {
     return () => window.clearInterval(id);
   }, [demoActive, paused]);
 
+  const goTo = React.useCallback((idx: number) => {
+    setFinished(false);
+    if (idx === iRef.current) setRun((r) => r + 1);
+    else setI(idx);
+  }, []);
+
+  const togglePlay = React.useCallback(() => {
+    if (finished) restart();
+    else setPaused((p) => !p);
+  }, [finished, restart]);
+
+  const toggleVoice = () => {
+    const v = !voiceOn;
+    setVoiceOn(v);
+    voiceRef.current = v;
+    try {
+      window.localStorage.setItem(VOICE_KEY, v ? "1" : "0");
+    } catch {
+      /* storage unavailable */
+    }
+    if (v) playClip(elapsedRef.current);
+    else audioRef.current?.pause();
+  };
+
+  const exit = React.useCallback(() => {
+    audioRef.current?.pause();
+    stopDemo();
+  }, [stopDemo]);
+
   React.useEffect(() => {
     if (!demoActive) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") stopDemo();
+      if (e.key === "Escape") exit();
       if (e.key === " ") {
         e.preventDefault();
-        setPaused((p) => !p);
+        togglePlay();
       }
-      if (e.key === "ArrowRight") setI((x) => Math.min(beats.length - 1, x + 1));
-      if (e.key === "ArrowLeft") setI((x) => Math.max(0, x - 1));
+      if (e.key === "ArrowRight") goTo(Math.min(beats.length - 1, iRef.current + 1));
+      if (e.key === "ArrowLeft") goTo(Math.max(0, iRef.current - 1));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [demoActive, stopDemo]);
+  }, [demoActive, exit, togglePlay, goTo]);
+
+  React.useEffect(() => () => audioRef.current?.pause(), []);
 
   if (!demoActive || !beat) return null;
 
   const overall = starts[i] + Math.min(elapsed, beat.ms);
   const modalOpen = app.modal !== null || app.workerId !== null;
   const chapters = beats.map((b, idx) => ({ b, idx })).filter(({ b, idx }) => idx === 0 || beats[idx - 1].chapter !== b.chapter);
+  const iconBtn = "rounded-md p-1.5 text-white/70 hover:bg-white/10 hover:text-white";
 
   return (
     <>
@@ -198,10 +328,21 @@ export function ExecutiveDemo() {
             <p className="mt-6 text-[13px] font-semibold uppercase tracking-[0.1em] text-brand-200">
               {i === 0 ? "Sage · Workforce Intelligence for Deel" : "Sage"}
             </p>
-            <p key={i} className="mt-3 animate-fade-up text-[30px] font-semibold leading-[1.25] tracking-[-0.025em] text-white">
+            <p key={`${i}-${run}`} className="mt-3 animate-fade-up text-[30px] font-semibold leading-[1.25] tracking-[-0.025em] text-white">
               {beat.caption}
             </p>
-            <p className="mt-6 text-[12px] text-white/50">Independent concept prototype · fictional data · not affiliated with Deel</p>
+            {finished ? (
+              <div className="mt-8 flex animate-fade-up justify-center gap-2">
+                <button onClick={restart} className="inline-flex h-10 items-center gap-2 rounded-lg bg-white px-4 text-[13.5px] font-medium text-ink hover:bg-white/90">
+                  <RotateCcw className="size-4" /> Replay demo
+                </button>
+                <button onClick={exit} className="inline-flex h-10 items-center rounded-lg border border-white/25 px-4 text-[13.5px] font-medium text-white hover:bg-white/10">
+                  Explore Sage
+                </button>
+              </div>
+            ) : (
+              <p className="mt-6 text-[12px] text-white/50">Independent concept prototype · fictional data · not affiliated with Deel</p>
+            )}
           </div>
         </div>
       ) : (
@@ -210,23 +351,31 @@ export function ExecutiveDemo() {
 
       <div className="fixed bottom-5 left-1/2 z-[95] w-[min(880px,calc(100vw-32px))] -translate-x-1/2 rounded-2xl bg-ink text-white shadow-pop" role="region" aria-label="Executive demo controls">
         {!beat.endCard && (
-          <p key={i} className="animate-fade-up px-5 pt-4 text-[16px] font-medium leading-snug" aria-live="polite">
+          <p key={`${i}-${run}`} className="animate-fade-up px-5 pt-4 text-[16px] font-medium leading-snug" aria-live="polite">
             {beat.caption}
           </p>
         )}
         <div className="flex items-center gap-3 px-4 py-3">
           <span className="flex items-center gap-1.5 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-brand-200">
-            <span className="size-1.5 animate-pulse rounded-full bg-risk" /> Demo
+            <span className={cn("size-1.5 rounded-full", paused ? "bg-white/40" : "animate-pulse bg-risk")} /> Demo
           </span>
           <div className="flex items-center gap-0.5">
-            <button onClick={() => setI(Math.max(0, i - 1))} className="rounded-md p-1.5 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Previous">
+            <button onClick={() => goTo(Math.max(0, i - 1))} className={iconBtn} aria-label="Previous">
               <SkipBack className="size-3.5" />
             </button>
-            <button onClick={() => setPaused((p) => !p)} className="rounded-md p-1.5 text-white hover:bg-white/10" aria-label={paused ? "Play" : "Pause"}>
-              {paused ? <Play className="size-4 fill-current" /> : <Pause className="size-4 fill-current" />}
+            <button
+              onClick={togglePlay}
+              className="rounded-md p-1.5 text-white hover:bg-white/10"
+              aria-label={finished ? "Replay demo" : paused ? "Play" : "Pause"}
+              title={finished ? "Replay" : paused ? "Play" : "Pause"}
+            >
+              {finished ? <RotateCcw className="size-4" /> : paused ? <Play className="size-4 fill-current" /> : <Pause className="size-4 fill-current" />}
             </button>
-            <button onClick={() => setI(Math.min(beats.length - 1, i + 1))} className="rounded-md p-1.5 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Next">
+            <button onClick={() => goTo(Math.min(beats.length - 1, i + 1))} className={iconBtn} aria-label="Next">
               <SkipForward className="size-3.5" />
+            </button>
+            <button onClick={toggleVoice} className={iconBtn} aria-label={voiceOn ? "Mute narration" : "Unmute narration"} aria-pressed={voiceOn} title={voiceOn ? "Mute narration" : "Unmute narration"}>
+              {voiceOn ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
             </button>
           </div>
           <div className="relative flex-1">
@@ -237,7 +386,7 @@ export function ExecutiveDemo() {
               {chapters.map(({ b, idx }) => (
                 <button
                   key={idx}
-                  onClick={() => setI(idx)}
+                  onClick={() => goTo(idx)}
                   className={cn("truncate text-left text-[10.5px] transition-colors hover:text-white", beats[i].chapter === b.chapter ? "text-white" : "text-white/45")}
                   style={{ width: `${(beats.filter((x) => x.chapter === b.chapter).reduce((s, x) => s + x.ms, 0) / total) * 100}%` }}
                 >
@@ -247,7 +396,7 @@ export function ExecutiveDemo() {
             </div>
           </div>
           <span className="num w-[76px] text-right text-[12px] text-white/60">{fmt(overall)} / {fmt(total)}</span>
-          <button onClick={stopDemo} className="rounded-md p-1.5 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Exit demo">
+          <button onClick={exit} className={iconBtn} aria-label="Exit demo">
             <X className="size-4" />
           </button>
         </div>

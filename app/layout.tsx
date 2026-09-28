@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppProvider } from "@/lib/store";
 import { AppShell } from "@/components/layout/AppShell";
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <AppProvider>
           <AppShell>{children}</AppShell>
         </AppProvider>
+        <Analytics />
       </body>
     </html>
   );
